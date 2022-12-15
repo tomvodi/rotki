@@ -482,5 +482,10 @@ export const transactionEventProtocolData = computed<ActionDataEntry[]>(() => [
     identifier: TransactionEventProtocol.WETH,
     label: 'WETH',
     image: './assets/images/defi/weth.svg'
+  },
+  {
+    identifier: TransactionEventProtocol.ILLUVIUM,
+    label: 'illuvium',
+    image: './assets/images/modules/illuvium.svg'
   }
 ]);

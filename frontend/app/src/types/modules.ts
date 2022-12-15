@@ -14,7 +14,8 @@ export enum Module {
   SUSHISWAP = 'sushiswap',
   NFTS = 'nfts',
   PICKLE = 'pickle_finance',
-  LIQUITY = 'liquity'
+  LIQUITY = 'liquity',
+  ILLUVIUM = 'illuvium'
 }
 
 export const ModuleEnum = z.nativeEnum(Module);
@@ -96,5 +97,10 @@ export const SUPPORTED_MODULES: SupportedModule[] = [
     identifier: Module.LIQUITY,
     name: 'Liquity',
     icon: './assets/images/defi/liquity.svg'
+  },
+  {
+    identifier: Module.ILLUVIUM,
+    name: 'Illuvium',
+    icon: './assets/images/modules/illuvium.svg'
   }
 ];
