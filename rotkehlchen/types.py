@@ -28,6 +28,7 @@ ModuleName = Literal[
     'liquity',
     'pickle_finance',
     'nfts',
+    'illuvium',
 ]
 
 # TODO: Turn this into some kind of light data structure and not just a mapping
@@ -47,6 +48,7 @@ AVAILABLE_MODULES_MAP = {
     'liquity': 'Liquity',
     'pickle_finance': 'Pickle Finance',
     'nfts': 'NFTs',
+    'illuvium': 'Illuvium',
 }
 
 DEFAULT_OFF_MODULES = {'makerdao_dsr', 'yearn_vaults'}

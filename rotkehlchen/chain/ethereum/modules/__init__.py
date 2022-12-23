@@ -13,12 +13,14 @@ __all__ = [
     'Liquity',
     'PickleFinance',
     'Nfts',
+    'Illuvium',
 ]
 
 from .aave.aave import Aave
 from .balancer.balancer import Balancer
 from .compound import Compound
 from .eth2.eth2 import Eth2
+from .illuvium import Illuvium
 from .l2.loopring import Loopring
 from .liquity.trove import Liquity
 from .makerdao.dsr import MakerdaoDsr

@@ -95,6 +95,7 @@ from rotkehlchen.utils.mixins.cacheable import CacheableMixIn, cache_response_ti
 from rotkehlchen.utils.mixins.lockable import LockableQueryMixIn, protect_with_lock
 
 from .balances import BlockchainBalances, BlockchainBalancesUpdate
+from .ethereum.modules.illuvium.illuvium import Illuvium
 
 if TYPE_CHECKING:
     from rotkehlchen.chain.avalanche.manager import AvalancheManager
@@ -383,6 +384,10 @@ class ChainsAggregator(CacheableMixIn, LockableQueryMixIn):
 
     @overload
     def get_module(self, module_name: Literal['nfts']) -> Optional['Nfts']:
+        ...
+
+    @overload
+    def get_module(self, module_name: Literal['illuvium']) -> Optional[Illuvium]:
         ...
 
     def get_module(self, module_name: ModuleName) -> Optional[Any]:
