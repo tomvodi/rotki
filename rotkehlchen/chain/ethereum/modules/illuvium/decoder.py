@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 ILV_ETH_CORE_POOL_V1 = string_to_evm_address('0x8B4d8443a0229349A9892D4F7CbE89eF5f843F72')
 ILV_CORE_POOL_V1 = string_to_evm_address('0x25121EDDf746c884ddE4619b573A7B10714E2a36')
 ILV_CORE_POOL_V1_STAKING = b']\xac\x0c\x1b\x11\x12VJ\x04[\xa9C\xc9\xd5\x02p\x89>\x8e\x82lI\xbe\x8eps\xad\xc7\x13\xab{\xd7'  # noqa: E501
-ILV_CORE_POOL_V1_STAKING_ABI = '{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"_by","type":"address"},{"indexed":true,"internalType":"address","name":"_from","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"Staked","type":"event"}'  # noqa: E501
+ILV_CORE_POOL_V1_UNSTAKING = b'\xd8eO\xcc\x8c\xf5\xb3m0\xb3\xf5\xe4h\x8f\xc7\x81\x18\xe6\xd6\x8d\xe6\x0b\x99\x94\xe0\x99\x02&\x8bW\xc3\xe3'  # noqa: E501
 ILV_CORE_POOL_V1_CLAIM = b'P3\xfd\xcf\x01Vo\xb3\x8f\xe1I1\x14\xb8V\xff*]\x1cxu\xa6\xfa\xfd\xac\xd1\xd3 \xa0\x12\x80j'  # noqa: E501
 
 logger = logging.getLogger(__name__)
@@ -52,33 +52,56 @@ class IlluviumDecoder(DecoderInterface):
             return 'ILV'
         return 'Unknown'
 
-    def _decode_v1_ilv_eth_staking(  # pylint: disable=no-self-use
+    def _decode_illuvium_v1_events(
             self,
             tx_log: EvmTxReceiptLog,
-            transaction: EvmTransaction,  # pylint: disable=unused-argument
+            transaction: EvmTransaction,
             decoded_events: list[HistoryBaseEntry],
             all_logs: list[EvmTxReceiptLog],  # pylint: disable=unused-argument
             action_items: Optional[list[ActionItem]],  # pylint: disable=unused-argument
     ) -> tuple[Optional[HistoryBaseEntry], list[ActionItem]]:
-        if tx_log.topics[0] not in (ILV_CORE_POOL_V1_STAKING, ILV_CORE_POOL_V1_CLAIM):
+        if tx_log.topics[0] not in (
+                ILV_CORE_POOL_V1_STAKING,
+                ILV_CORE_POOL_V1_UNSTAKING,
+                ILV_CORE_POOL_V1_CLAIM,
+        ):
             return None, []
 
         for event in decoded_events:
             if (
                     tx_log.topics[0] == ILV_CORE_POOL_V1_STAKING and
-                    event.asset == A_SLP_ILV_ETH
+                    event.asset == A_SLP_ILV_ETH or
+                    event.asset == A_ILV
             ):
                 pool_name = self._poolname_for_counterparty(event.counterparty)
                 user = hex_or_bytes_to_address(tx_log.topics[1])
                 extra_data = {
                     'staked_amount': str(event.balance.amount),
-                    'asset': A_SLP_ILV_ETH.symbol_or_name(),
+                    'asset': event.asset.symbol_or_name(),
                 }
                 if event.location_label == user and event.event_type == HistoryEventType.SPEND:
                     event.event_type = HistoryEventType.STAKING
                     event.event_subtype = HistoryEventSubType.DEPOSIT_ASSET
                     event.counterparty = CPT_ILLUVIUM
-                    event.notes = f'Stake {event.balance.amount} {A_SLP_ILV_ETH.symbol_or_name()} in the {pool_name} pool'  # noqa: E501
+                    event.notes = f'Stake {event.balance.amount} {event.asset.symbol_or_name()} in the {pool_name} pool'  # noqa: E501
+                    event.extra_data = extra_data
+
+            if (
+                    tx_log.topics[0] == ILV_CORE_POOL_V1_UNSTAKING and
+                    event.asset == A_SLP_ILV_ETH or
+                    event.asset == A_ILV
+            ):
+                pool_name = self._poolname_for_counterparty(event.counterparty)
+                user = hex_or_bytes_to_address(tx_log.topics[1])
+                extra_data = {
+                    'unstaked_amount': str(event.balance.amount),
+                    'asset': event.asset.symbol_or_name(),
+                }
+                if event.location_label == user and event.event_type == HistoryEventType.RECEIVE:
+                    event.event_type = HistoryEventType.STAKING
+                    event.event_subtype = HistoryEventSubType.REMOVE_ASSET
+                    event.counterparty = CPT_ILLUVIUM
+                    event.notes = f'Unstake {event.balance.amount} {event.asset.symbol_or_name()} from the {pool_name} pool'  # noqa: E501
                     event.extra_data = extra_data
 
             if (
@@ -151,7 +174,8 @@ class IlluviumDecoder(DecoderInterface):
 
     def addresses_to_decoders(self) -> dict[ChecksumEvmAddress, tuple[Any, ...]]:
         return {
-            ILV_ETH_CORE_POOL_V1: (self._decode_v1_ilv_eth_staking,),
+            ILV_ETH_CORE_POOL_V1: (self._decode_illuvium_v1_events,),
+            ILV_CORE_POOL_V1: (self._decode_illuvium_v1_events,),
         }
 
     def counterparties(self) -> list[str]:
