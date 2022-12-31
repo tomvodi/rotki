@@ -93,6 +93,72 @@ def test_v1_ilv_eth_pool_silv_claim(
 
 
 @pytest.mark.parametrize('ethereum_accounts', [['0xDf22269fD88318FB13956b6329BB5959AA06181d']])
+def test_v2_silv_claim(
+        database,
+        ethereum_inquirer,
+        eth_transactions,
+):
+    receipt = EvmTxReceipt(
+        tx_hash=TEST_EVM_HASH,
+        chain_id=ChainID.ETHEREUM,
+        contract_address=None,
+        status=True,
+        type=0,
+        logs=[
+            EvmTxReceiptLog(  # Transfer event
+                log_index=420,
+                data=hexstring_to_bytes('0x00000000000000000000000000000000000000000000000003105E9EE965119A'),  # noqa: E501
+                address=string_to_evm_address('0x7E77dCb127F99ECe88230a64Db8d595F31F1b068'),
+                removed=False,
+                topics=[
+                    hexstring_to_bytes('0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'),  # noqa: E501
+                    hexstring_to_bytes('0x0000000000000000000000000000000000000000000000000000000000000000'),  # noqa: E501
+                    hexstring_to_bytes('0x000000000000000000000000Df22269fD88318FB13956b6329BB5959AA06181d'),  # noqa: E501
+                ],
+            ),
+            EvmTxReceiptLog(  # Claim event
+                log_index=421,
+                data=hexstring_to_bytes('0x000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000003105E9EE965119A'),  # noqa: E501
+                address=string_to_evm_address('0xe98477bDc16126bB0877c6e3882e3Edd72571Cc2'),
+                removed=False,
+                topics=[
+                    hexstring_to_bytes('0x7aa2446843f85ab4372b9a9eddbe072a35cd062fb199eaddea2ad3b8d0396fa2'),  # noqa: E501
+                    hexstring_to_bytes('0x0000000000000000000000007f5f854FfB6b7701540a00C69c4AB2De2B34291D'),  # noqa: E501
+                    hexstring_to_bytes('0x000000000000000000000000Df22269fD88318FB13956b6329BB5959AA06181d'),  # noqa: E501
+                ],
+            ),
+        ],
+    )
+
+    events = get_decoded_events(
+        database,
+        eth_transactions,
+        ethereum_inquirer,
+        TEST_TRANSACTION,
+        receipt,
+    )
+
+    assert len(events) == 2
+    expected_events = [
+        TRANSACTION_FEE_EVENT,
+        HistoryBaseEntry(
+            event_identifier=TEST_EVM_HASH,
+            sequence_index=421,
+            timestamp=TimestampMS(1639307389000),
+            location=Location.BLOCKCHAIN,
+            event_type=HistoryEventType.RECEIVE,
+            event_subtype=HistoryEventSubType.REWARD,
+            asset=A_SILV_V2,
+            balance=Balance(amount=FVal('0.220780418354712986'), usd_value=ZERO),
+            location_label=TEST_USER_ADDRESS,
+            notes='Claim 0.220780418354712986 sILV2',
+            counterparty=CPT_ILLUVIUM,
+            extra_data={'claimed_amount': '0.220780418354712986', 'asset': 'sILV2'},
+        )]
+    assert events == expected_events
+
+
+@pytest.mark.parametrize('ethereum_accounts', [['0xDf22269fD88318FB13956b6329BB5959AA06181d']])
 def test_v1_ilv_eth_pool_ilv_claim(
         database,
         ethereum_inquirer,
@@ -493,7 +559,7 @@ def test_v1_ilv_pool_staking(
             counterparty=CPT_ILLUVIUM,
             extra_data={'staked_amount': '0.67277220583589505', 'asset': 'ILV'},
         )]
-    assert events[1] == expected_events[1]
+    assert events == expected_events
 
 
 @pytest.mark.parametrize('ethereum_accounts', [['0xDf22269fD88318FB13956b6329BB5959AA06181d']])
@@ -563,7 +629,7 @@ def test_v1_ilv_pool_unstaking(
 
 
 @pytest.mark.parametrize('ethereum_accounts', [['0xDf22269fD88318FB13956b6329BB5959AA06181d']])
-def test_v2_silv2_claim(
+def test_v2_silv2_migrate_from_silv(
         database,
         ethereum_inquirer,
         eth_transactions,
@@ -624,7 +690,7 @@ def test_v2_silv2_claim(
             notes='Migrated 0.100111780743625967 sILV2 from sILV1',
             counterparty=CPT_ILLUVIUM,
         )]
-    assert events[1] == expected_events[1]
+    assert events == expected_events
 
 
 def get_decoded_events(

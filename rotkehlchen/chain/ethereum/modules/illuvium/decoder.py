@@ -28,6 +28,7 @@ ILV_PROXY_V2 = string_to_evm_address('0xe98477bDc16126bB0877c6e3882e3Edd72571Cc2
 ILV_CORE_POOL_V1_STAKING = b']\xac\x0c\x1b\x11\x12VJ\x04[\xa9C\xc9\xd5\x02p\x89>\x8e\x82lI\xbe\x8eps\xad\xc7\x13\xab{\xd7'  # noqa: E501
 ILV_CORE_POOL_V1_UNSTAKING = b'\xd8eO\xcc\x8c\xf5\xb3m0\xb3\xf5\xe4h\x8f\xc7\x81\x18\xe6\xd6\x8d\xe6\x0b\x99\x94\xe0\x99\x02&\x8bW\xc3\xe3'  # noqa: E501
 ILV_CORE_POOL_V1_CLAIM = b'P3\xfd\xcf\x01Vo\xb3\x8f\xe1I1\x14\xb8V\xff*]\x1cxu\xa6\xfa\xfd\xac\xd1\xd3 \xa0\x12\x80j'  # noqa: E501
+ILV_CORE_POOL_V2_CLAIM = b'z\xa2DhC\xf8Z\xb47+\x9a\x9e\xdd\xbe\x07*5\xcd\x06/\xb1\x99\xea\xdd\xea*\xd3\xb8\xd09o\xa2'  # noqa: E501
 
 # After sILV token was hacked, silv2 token could be minted just once
 ILV_SILV2_CLAIM = string_to_evm_address('0xA904f27b1DE7e82Ba587677eE1f5af0AD0A8c79A')
@@ -187,6 +188,26 @@ class IlluviumDecoder(DecoderInterface):
             all_logs: list[EvmTxReceiptLog],  # pylint: disable=unused-argument
             action_items: Optional[list[ActionItem]],  # pylint: disable=unused-argument
     ) -> tuple[Optional[HistoryBaseEntry], list[ActionItem]]:
+        if tx_log.topics[0] not in (
+                ILV_CORE_POOL_V2_CLAIM,
+        ):
+            return None, []
+
+        for event in decoded_events:
+            if (
+                    tx_log.topics[0] == ILV_CORE_POOL_V2_CLAIM and
+                    event.asset == A_SILV_V2
+            ):
+                extra_data = {
+                    'claimed_amount': str(event.balance.amount),
+                    'asset': A_SILV_V2.symbol_or_name(),
+                }
+                event.event_type = HistoryEventType.RECEIVE
+                event.event_subtype = HistoryEventSubType.REWARD
+                event.counterparty = CPT_ILLUVIUM
+                event.notes = f'Claim {event.balance.amount} {A_SILV_V2.symbol_or_name()}'
+                event.extra_data = extra_data
+
         return None, []
 
     def _decode_silv2_migrate_events(  # pylint: disable=no-self-use
