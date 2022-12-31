@@ -11,7 +11,7 @@ from rotkehlchen.chain.evm.decoding.constants import CPT_GAS
 from rotkehlchen.chain.evm.structures import EvmTxReceipt, EvmTxReceiptLog
 from rotkehlchen.chain.evm.types import string_to_evm_address
 from rotkehlchen.constants import ZERO
-from rotkehlchen.constants.assets import A_ETH, A_ILV, A_SILV_V1, A_SLP_ILV_ETH
+from rotkehlchen.constants.assets import A_ETH, A_ILV, A_SILV_V1, A_SILV_V2, A_SLP_ILV_ETH
 from rotkehlchen.db.dbhandler import DBHandler
 from rotkehlchen.db.evmtx import DBEvmTx
 from rotkehlchen.fval import FVal
@@ -560,6 +560,71 @@ def test_v1_ilv_pool_unstaking(
             extra_data={'unstaked_amount': '4.374580515266053399', 'asset': 'ILV'},
         )]
     assert events == expected_events
+
+
+@pytest.mark.parametrize('ethereum_accounts', [['0xDf22269fD88318FB13956b6329BB5959AA06181d']])
+def test_v2_silv2_claim(
+        database,
+        ethereum_inquirer,
+        eth_transactions,
+):
+    receipt = EvmTxReceipt(
+        tx_hash=TEST_EVM_HASH,
+        chain_id=ChainID.ETHEREUM,
+        contract_address=None,
+        status=True,
+        type=0,
+        logs=[
+            EvmTxReceiptLog(  # Transfer event
+                log_index=245,
+                data=hexstring_to_bytes('0x0000000000000000000000000000000000000000000000000163ab22590e3cef'),  # noqa: E501
+                address=string_to_evm_address('0x7E77dCb127F99ECe88230a64Db8d595F31F1b068'),
+                removed=False,
+                topics=[
+                    hexstring_to_bytes('0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'),  # noqa: E501
+                    hexstring_to_bytes('0x0000000000000000000000000000000000000000000000000000000000000000'),  # noqa: E501
+                    hexstring_to_bytes('0x000000000000000000000000Df22269fD88318FB13956b6329BB5959AA06181d'),  # noqa: E501
+                ],
+            ),
+            EvmTxReceiptLog(  # LogClaim event
+                log_index=421,
+                data=hexstring_to_bytes('0x0000000000000000000000000000000000000000000000000163ab22590e3cef'),  # noqa: E501
+                address=string_to_evm_address('0xA904f27b1DE7e82Ba587677eE1f5af0AD0A8c79A'),
+                removed=False,
+                topics=[
+                    hexstring_to_bytes('0x51223fdc0a25891366fb358b4af9fe3c381b1566e287c61a29d01c8a173fe4f4'),  # noqa: E501
+                    hexstring_to_bytes('0x000000000000000000000000000000000000000000000000000000000000083a'),  # noqa: E501
+                    hexstring_to_bytes('0x00000000000000000000000028e99f920d0c52727b45e7aa535786cda5c9ac67'),  # noqa: E501
+                ],
+            ),
+        ],
+    )
+
+    events = get_decoded_events(
+        database,
+        eth_transactions,
+        ethereum_inquirer,
+        TEST_TRANSACTION,
+        receipt,
+    )
+
+    assert len(events) == 2
+    expected_events = [
+        TRANSACTION_FEE_EVENT,
+        HistoryBaseEntry(
+            event_identifier=TEST_EVM_HASH,
+            sequence_index=246,
+            timestamp=TimestampMS(1639307389000),
+            location=Location.BLOCKCHAIN,
+            event_type=HistoryEventType.MIGRATE,
+            event_subtype=HistoryEventSubType.RECEIVE,
+            asset=A_SILV_V2,
+            balance=Balance(amount=FVal('0.100111780743625967'), usd_value=ZERO),
+            location_label=TEST_USER_ADDRESS,
+            notes='Migrated 0.100111780743625967 sILV2 from sILV1',
+            counterparty=CPT_ILLUVIUM,
+        )]
+    assert events[1] == expected_events[1]
 
 
 def get_decoded_events(
