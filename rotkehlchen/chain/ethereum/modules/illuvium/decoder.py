@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from rotkehlchen.accounting.structures.balance import Balance
 from rotkehlchen.accounting.structures.base import HistoryBaseEntry
 from rotkehlchen.accounting.structures.types import HistoryEventSubType, HistoryEventType
+from rotkehlchen.assets.asset import Asset
 from rotkehlchen.chain.ethereum.modules.illuvium.constants import CPT_ILLUVIUM
 from rotkehlchen.chain.ethereum.utils import asset_normalized_value
 from rotkehlchen.chain.evm.constants import ZERO_ADDRESS
@@ -116,15 +117,7 @@ class IlluviumDecoder(DecoderInterface):
                     tx_log.topics[0] == ILV_CORE_POOL_V1_CLAIM and
                     event.asset == A_SILV_V1
             ):
-                extra_data = {
-                    'claimed_amount': str(event.balance.amount),
-                    'asset': A_SILV_V1.symbol_or_name(),
-                }
-                event.event_type = HistoryEventType.RECEIVE
-                event.event_subtype = HistoryEventSubType.REWARD
-                event.counterparty = CPT_ILLUVIUM
-                event.notes = f'Claim {event.balance.amount} {A_SILV_V1.symbol_or_name()}'
-                event.extra_data = extra_data
+                self._enrich_silv_claim_event(event, A_SILV_V1)
 
         if (
                 tx_log.topics[0] == ILV_CORE_POOL_V1_CLAIM
@@ -198,17 +191,20 @@ class IlluviumDecoder(DecoderInterface):
                     tx_log.topics[0] == ILV_CORE_POOL_V2_CLAIM and
                     event.asset == A_SILV_V2
             ):
-                extra_data = {
-                    'claimed_amount': str(event.balance.amount),
-                    'asset': A_SILV_V2.symbol_or_name(),
-                }
-                event.event_type = HistoryEventType.RECEIVE
-                event.event_subtype = HistoryEventSubType.REWARD
-                event.counterparty = CPT_ILLUVIUM
-                event.notes = f'Claim {event.balance.amount} {A_SILV_V2.symbol_or_name()}'
-                event.extra_data = extra_data
+                self._enrich_silv_claim_event(event, A_SILV_V2)
 
         return None, []
+
+    def _enrich_silv_claim_event(self, event: HistoryBaseEntry, asset: Asset):
+        extra_data = {
+            'claimed_amount': str(event.balance.amount),
+            'asset': asset.symbol_or_name(),
+        }
+        event.event_type = HistoryEventType.RECEIVE
+        event.event_subtype = HistoryEventSubType.REWARD
+        event.counterparty = CPT_ILLUVIUM
+        event.notes = f'Claim {event.balance.amount} {asset.symbol_or_name()}'
+        event.extra_data = extra_data
 
     def _decode_silv2_migrate_events(  # pylint: disable=no-self-use
             self,
